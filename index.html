@@ -132,8 +132,7 @@
 
             svg.appendChild(path);
             cell.appendChild(svg);
-            document.getElementById('grid').appendChild(cell);
-
+            // Do not append to DOM here
             return {
                 element: cell,
                 x: x,
@@ -152,14 +151,17 @@
             const startX = -gridSpacing;
             const startY = -gridSpacing;
 
+            const fragment = document.createDocumentFragment();
             for (let row = 0; row < rows; row++) {
                 for (let col = 0; col < cols; col++) {
                     const x = startX + col * gridSpacing;
                     const y = startY + row * gridSpacing;
                     const shape = createShapeElement(x, y);
                     shapes.push(shape);
+                    fragment.appendChild(shape.element);
                 }
             }
+            document.getElementById('grid').appendChild(fragment);
         }
 
         function addNewShapesAtEdges() {
@@ -182,24 +184,28 @@
                 const newX = maxX + gridSpacing;
                 const rows = Math.ceil(window.innerHeight / gridSpacing) + 2; //todo: declare outside to reuse with initialize grid
                 const startY = minY;
-
+                const fragment = document.createDocumentFragment();
                 for (let row = 0; row < rows; row++) {
                     const y = startY + row * gridSpacing;
                     const shape = createShapeElement(newX, y);
                     shapes.push(shape);
+                    fragment.appendChild(shape.element);
                 }
+                document.getElementById('grid').appendChild(fragment);
             }
 
             // Add new row at the top if needed
             if (minY > -gridSpacing) {
                 const newY = minY - gridSpacing;
                 const cols = Math.ceil(window.innerWidth / gridSpacing) + 2;
-
+                const fragment = document.createDocumentFragment();
                 for (let col = 0; col < cols; col++) {
                     const x = minX + col * gridSpacing;
                     const shape = createShapeElement(x, newY);
                     shapes.push(shape);
+                    fragment.appendChild(shape.element);
                 }
+                document.getElementById('grid').appendChild(fragment);
             }
         }
 
@@ -207,13 +213,16 @@
             const screenWidth = window.innerWidth;
             const screenHeight = window.innerHeight;
 
+            const fragment = document.createDocumentFragment();
             shapes = shapes.filter(shape => {
                 if (shape.x < -gridSpacing || shape.y > screenHeight + gridSpacing) {
-                    shape.element.remove();
+                    fragment.appendChild(shape.element); // Detach from DOM in batch
                     return false;
                 }
                 return true;
             });
+            // Remove all collected elements from DOM in one operation
+            fragment.textContent = '';
         }
 
         function updateShapePositions() {
@@ -287,9 +296,6 @@
                 initializeGrid();
             }, 200);
         });
-        // const fragment = document.createDocumentFragment();
-        // shapes.forEach(shape => fragment.appendChild(shape.element));
-        // document.getElementById('grid').appendChild(fragment);
     </script>
 </body>
 </html>
