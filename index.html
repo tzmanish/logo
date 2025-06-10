@@ -115,10 +115,7 @@ class Shape {
         this.element.style.top = this.y + 'px';
     }
 
-    applyCursorEffect(mouseX, mouseY, influenceRadius, cellSize, isMobile) {
-        if (isMobile) {
-            return;
-        }
+    applyCursorEffect(mouseX, mouseY, influenceRadius, cellSize) {
         const shapeCenterX = this.x + cellSize / 2;
         const shapeCenterY = this.y + cellSize / 2;
         const distance = Math.sqrt(
@@ -155,6 +152,10 @@ class ShapeGrid {
         this.cols;
         this.screenWidth;
         this.screenHeight;
+        this.minX;
+        this.maxX;
+        this.minY;
+        this.maxY;
     }
 
     initializeGrid() {
@@ -162,6 +163,10 @@ class ShapeGrid {
         this.rows = Math.ceil(window.innerHeight / this.gridSpacing) + 2;
         this.screenWidth = window.innerWidth;
         this.screenHeight = window.innerHeight;
+        this.minX = -this.gridSpacing;
+        this.maxX = (this.rows-2) * this.gridSpacing;
+        this.minY = -this.gridSpacing;
+        this.maxY = (this.cols-2) * this.gridSpacing;
         if (this.cols < 1 || this.rows < 1) return;
         const startX = -this.gridSpacing;
         const startY = -this.gridSpacing;
@@ -179,16 +184,10 @@ class ShapeGrid {
     }
 
     addNewShapesAtEdges() {
-        let maxX = -Infinity, minY = Infinity, minX = Infinity;
-        this.shapes.forEach(shape => {
-            if (shape.x > maxX) maxX = shape.x;
-            if (shape.y < minY) minY = shape.y;
-            if (shape.x < minX) minX = shape.x;
-        });
         // Add new column on the right if needed
-        if (maxX < this.screenWidth + this.gridSpacing) {
-            const newX = maxX + this.gridSpacing;
-            const startY = minY;
+        if (this.maxX < this.screenWidth + this.gridSpacing) {
+            const newX = this.maxX + this.gridSpacing;
+            const startY = this.minY;
             const fragment = document.createDocumentFragment();
             for (let row = 0; row < this.rows; row++) {
                 const y = startY + row * this.gridSpacing;
@@ -197,37 +196,48 @@ class ShapeGrid {
                 fragment.appendChild(shape.element);
             }
             this.gridContainer.appendChild(fragment);
+            this.maxX = newX;
         }
         // Add new row at the top if needed
-        if (minY > -this.gridSpacing) {
-            const newY = minY - this.gridSpacing;
+        if (this.minY > -this.gridSpacing) {
+            const newY = this.minY - this.gridSpacing;
             const fragment = document.createDocumentFragment();
             for (let col = 0; col < this.cols; col++) {
-                const x = minX + col * this.gridSpacing;
+                const x = this.minX + col * this.gridSpacing;
                 const shape = new Shape(x, newY, this.shapeIdCounter++, this.shapePaths);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
             }
             this.gridContainer.appendChild(fragment);
+            this.minY = newY;
         }
     }
 
     removeOffscreenShapes() {
-        const fragment = document.createDocumentFragment();
         this.shapes = this.shapes.filter(shape => {
             if (shape.x < -this.gridSpacing || shape.y > this.screenHeight + this.gridSpacing) {
-                fragment.appendChild(shape.element);
+                this.gridContainer.removeChild(shape.element); // Directly remove from DOM
                 return false;
             }
             return true;
         });
-        fragment.textContent = '';
     }
 
     updateShapePositions() {
+        this.minX = Infinity;
+        this.maxX = -Infinity;
+        this.minY = Infinity;
+        this.maxY = -Infinity;
         this.shapes.forEach(shape => {
             shape.updatePosition(this.moveSpeed);
-            shape.applyCursorEffect(this.mouseX, this.mouseY, this.influenceRadius, this.cellSize, this.isMobile);
+            if (!this.isMobile) {
+                shape.applyCursorEffect(this.mouseX, this.mouseY, this.influenceRadius, this.cellSize);
+            }
+            // Update minX, maxX, minY, manY as shapes move
+            if (shape.x < this.minX) this.minX = shape.x;
+            if (shape.x > this.maxX) this.maxX = shape.x;
+            if (shape.y < this.minY) this.minY = shape.y;
+            if (shape.y > this.maxY) this.maxY = shape.y;
         });
     }
 
@@ -245,10 +255,9 @@ class ShapeGrid {
         window.addEventListener('resize', () => {
             clearTimeout(this.resizeTimeout);
             this.resizeTimeout = setTimeout(() => {
-                // Use a fragment to batch-remove all shape elements
-                const fragment = document.createDocumentFragment();
-                this.shapes.forEach(shape => fragment.appendChild(shape.element));
-                fragment.textContent = '';
+                while (this.gridContainer.firstChild) {
+                    this.gridContainer.removeChild(this.gridContainer.firstChild);
+                }
                 this.shapes = [];
                 this.shapeIdCounter = 0;
                 this.initializeGrid();
