@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endless Moving Shapes Grid</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .logo-container {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .logo {
+            width: min(200px, 60vw, 60vh);
+            height: min(200px, 60vw, 60vh);
+            filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.3));
+        }
+        
+        .grid-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .shape-cell {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .shape {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .shape path {
+            fill: #2a2a2a;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-container" id="grid"></div>
+    
+    <div class="logo-container">
+        <img class="logo" src="./logo.svg" alt="logo">
+    </div>
+
+    <script>
+        const shapePaths = [
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L0.5 0 z',
+            'M6.5 0 A6.5 6.5 0 0 0 0 6.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L6.5 0 z',
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 6.5 A6.5 6.5 0 0 0 0.5 0 L0.5 0 z',
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L0.5 7 A6.5 6.5 0 0 0 7 0.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L0.5 0 z',
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 0.5 A6.5 6.5 0 0 0 6.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L0.5 0 z',
+            'M6.5 0 A6.5 6.5 0 0 0 0 6.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L0.5 7 A6.5 6.5 0 0 0 7 0.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L6.5 0 z',
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 0.5 A6.5 6.5 0 0 0 6.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 6.5 A6.5 6.5 0 0 0 0.5 0 L0.5 0 z',
+            'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L3.5 0 z',
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L0.5 0 z',
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 3.5 A3.5 3.5 0 0 0 3.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L0.5 0 z',
+            'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 3.5 A3.5 3.5 0 0 0 3.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L3.5 0 z',
+            'M0.5 0 A0.5 0.5 0 0 0 0 0.5 L0 3.5 A3.5 3.5 0 0 0 3.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L0.5 0 z',
+            'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 3.5 A3.5 3.5 0 0 0 3.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 0.5 A0.5 0.5 0 0 0 6.5 0 L3.5 0 z',
+            'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 3.5 A3.5 3.5 0 0 0 3.5 7 L6.5 7 A0.5 0.5 0 0 0 7 6.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L3.5 0 z',
+            'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L3.5 0 z',
+            'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 3.5 A3.5 3.5 0 0 0 3.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L3.5 0 z'
+        ];
+
+        let shapes = [];
+        let shapeIdCounter = 0;
+        const cellSize = 50;
+        const gap = 15;
+        const gridSpacing = cellSize + gap;
+        const moveSpeed = 0.2; // pixels per frame
+
+        function getRandomShape() {
+            const randomIndex = Math.floor(Math.random() * shapePaths.length);
+            return shapePaths[randomIndex];
+        }
+
+        function createShapeElement(x, y) {
+            const cell = document.createElement('div');
+            cell.className = 'shape-cell';
+            cell.id = `shape-${shapeIdCounter++}`;
+            cell.style.left = x + 'px';
+            cell.style.top = y + 'px';
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'shape');
+            svg.setAttribute('viewBox', '0 0 7 7');
+            svg.setAttribute('width', '24');
+            svg.setAttribute('height', '24');
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', getRandomShape());
+            path.setAttribute('fill', '#2a2a2a');
+            path.setAttribute('opacity', '0.3');
+
+            svg.appendChild(path);
+            cell.appendChild(svg);
+            document.getElementById('grid').appendChild(cell);
+
+            return {
+                element: cell,
+                x: x,
+                y: y,
+                id: cell.id
+            };
+        }
+
+        function initializeGrid() {
+            const cols = Math.ceil(window.innerWidth / gridSpacing) + 2; // +2 for buffer
+            const rows = Math.ceil(window.innerHeight / gridSpacing) + 2; // +2 for buffer
+
+            // Start grid slightly off-screen to the top-right
+            const startX = -gridSpacing;
+            const startY = -gridSpacing;
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const x = startX + col * gridSpacing;
+                    const y = startY + row * gridSpacing;
+                    const shape = createShapeElement(x, y);
+                    shapes.push(shape);
+                }
+            }
+        }
+
+        function addNewShapesAtEdges() {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+
+            // Find the boundary positions
+            let maxX = -Infinity;
+            let minY = Infinity;
+            let minX = Infinity;
+
+            shapes.forEach(shape => {
+                if (shape.x > maxX) maxX = shape.x;
+                if (shape.y < minY) minY = shape.y;
+                if (shape.x < minX) minX = shape.x;
+            });
+
+            // Add new column on the right if needed
+            if (maxX < screenWidth + gridSpacing) {
+                const newX = maxX + gridSpacing;
+                const rows = Math.ceil((screenHeight + 2 * gridSpacing) / gridSpacing) + 1;
+                const startY = minY;
+
+                for (let row = 0; row < rows; row++) {
+                    const y = startY + row * gridSpacing;
+                    const shape = createShapeElement(newX, y);
+                    shapes.push(shape);
+                }
+            }
+
+            // Add new row at the top if needed
+            if (minY > -gridSpacing) {
+                const newY = minY - gridSpacing;
+                const cols = Math.ceil((screenWidth + 2 * gridSpacing) / gridSpacing) + 1;
+
+                for (let col = 0; col < cols; col++) {
+                    const x = minX + col * gridSpacing;
+                    const shape = createShapeElement(x, newY);
+                    shapes.push(shape);
+                }
+            }
+
+            // Handle the top-right corner specifically
+            // Check if we need to add a shape at the intersection of new row and column
+            const needsCornerShape = (maxX < screenWidth + gridSpacing) && (minY > -gridSpacing);
+            if (needsCornerShape) {
+                // The corner shape is already added by either the row or column generation above
+                // But we need to ensure proper coverage for diagonal movement
+                const cornerX = maxX + gridSpacing;
+                const cornerY = minY - gridSpacing;
+                
+                // Check if this exact position already exists
+                const cornerExists = shapes.some(shape => 
+                    Math.abs(shape.x - cornerX) < 1 && Math.abs(shape.y - cornerY) < 1
+                );
+                
+                if (!cornerExists) {
+                    const shape = createShapeElement(cornerX, cornerY);
+                    shapes.push(shape);
+                }
+            }
+        }
+
+        function removeOffscreenShapes() {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+
+            shapes = shapes.filter(shape => {
+                if (shape.x < -gridSpacing || shape.y > screenHeight + gridSpacing) {
+                    shape.element.remove();
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        function updateShapePositions() {
+            shapes.forEach(shape => {
+                shape.x -= moveSpeed;
+                shape.y += moveSpeed;
+                shape.element.style.left = shape.x + 'px';
+                shape.element.style.top = shape.y + 'px';
+            });
+        }
+
+        function animate() {
+            updateShapePositions();
+            addNewShapesAtEdges();
+            removeOffscreenShapes();
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize and start animation
+        initializeGrid();
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // Clear existing shapes
+            shapes.forEach(shape => shape.element.remove());
+            shapes = [];
+            shapeIdCounter = 0;
+            
+            // Reinitialize grid
+            initializeGrid();
+        });
+    </script>
+</body>
+</html>
