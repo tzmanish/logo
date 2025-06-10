@@ -145,14 +145,16 @@ class ShapeGrid {
     frameSkip = this.isMobile ? 2 : 1;
     frameCounter = 0;
     resizeTimeout = null;
-    rows;
-    cols;
     screenWidth;
     screenHeight;
     minX;
     maxX;
     minY;
     maxY;
+    allowedMinX;
+    allowedMinY;
+    allowedMaxX;
+    allowedMaxY;
 
     constructor(options) {
         ({
@@ -167,55 +169,53 @@ class ShapeGrid {
     }
 
     initializeGrid = () => {
-        this.cols = Math.ceil(window.innerWidth / this.gridSpacing) + 2;
-        this.rows = Math.ceil(window.innerHeight / this.gridSpacing) + 2;
         this.screenWidth = window.innerWidth;
         this.screenHeight = window.innerHeight;
-        this.minX = -this.gridSpacing;
-        this.maxX = (this.rows - 2) * this.gridSpacing;
-        this.minY = -this.gridSpacing;
-        this.maxY = (this.cols - 2) * this.gridSpacing;
-        if (this.cols < 1 || this.rows < 1) return;
-        const startX = -this.gridSpacing;
-        const startY = -this.gridSpacing;
+        this.allowedMinX = -this.gridSpacing;
+        this.allowedMinY = -this.gridSpacing;
+        this.allowedMaxX = this.screenWidth + this.gridSpacing;
+        this.allowedMaxY = this.screenHeight + this.gridSpacing;
+        
         const fragment = document.createDocumentFragment();
-        Array.from({ length: this.rows }).forEach((_, row) => {
-            Array.from({ length: this.cols }).forEach((_, col) => {
-                const x = startX + col * this.gridSpacing;
-                const y = startY + row * this.gridSpacing;
+        let x, y;
+        for (let x=this.allowedMinX; x<this.allowedMaxX; x+=this.gridSpacing) {
+            for (let y=this.allowedMaxY; y>this.allowedMinY; y-=this.gridSpacing) {
                 const shape = new Shape(x, y, this.shapeIdCounter++, this.shapePaths);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
-            });
-        });
+            }
+        }
         this.gridContainer.appendChild(fragment);
+
+        this.minX = this.allowedMinX;
+        this.maxX = x-this.gridSpacing;
+        this.minY = y+this.gridSpacing;
+        this.maxY = this.allowedMaxY;
     }
 
     addNewShapesAtEdges = () => {
         // Add new column on the right if needed
-        if (this.maxX < this.screenWidth + this.gridSpacing) {
+        if (this.maxX < this.allowedMaxX) {
             const newX = this.maxX + this.gridSpacing;
             const startY = this.minY;
             const fragment = document.createDocumentFragment();
-            Array.from({ length: this.rows }).forEach((_, row) => {
-                const y = startY + row * this.gridSpacing;
+            for (let y=this.maxY; y>=this.minY; y-=this.gridSpacing) {
                 const shape = new Shape(newX, y, this.shapeIdCounter++, this.shapePaths);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
-            });
+            }
             this.gridContainer.appendChild(fragment);
             this.maxX = newX;
         }
         // Add new row at the top if needed
-        if (this.minY > -this.gridSpacing) {
+        if (this.minY > this.allowedMinY) {
             const newY = this.minY - this.gridSpacing;
             const fragment = document.createDocumentFragment();
-            Array.from({ length: this.cols }).forEach((_, col) => {
-                const x = this.minX + col * this.gridSpacing;
+            for (let x=this.minX; x<=this.maxX; x+=this.gridSpacing) {
                 const shape = new Shape(x, newY, this.shapeIdCounter++, this.shapePaths);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
-            });
+            }
             this.gridContainer.appendChild(fragment);
             this.minY = newY;
         }
