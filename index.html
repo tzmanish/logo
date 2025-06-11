@@ -177,6 +177,11 @@ class ShapeGrid {
     allowedMinY;
     allowedMaxX;
     allowedMaxY;
+    
+    // Touch interaction state
+    touchActive = false;
+    touchX = 0;
+    touchY = 0;
 
     constructor(options) {
         ({
@@ -264,8 +269,18 @@ class ShapeGrid {
 
         this.shapes = this.shapes.filter(shape => {
             shape.updatePosition(this.moveSpeed);
+            
+            // Apply interactive effects based on device and state
             if (!this.isMobile) {
+                // Desktop: always apply cursor effect
                 shape.applyCursorEffect(this.mouseX, this.mouseY, this.influenceRadius, this.cellSize);
+            } else if (this.touchActive) {
+                // Mobile: apply cursor-like effect during active touch
+                shape.applyCursorEffect(this.touchX, this.touchY, this.influenceRadius, this.cellSize);
+            } else {
+                // Mobile: no active touch, keep shapes at normal scale
+                shape.element.style.transform = 'scale(1)';
+                shape.element.style.transition = 'transform 0.3s ease-out';
             }
             
             if (shape.x < this.allowedMinX || shape.y > this.allowedMaxY) {
@@ -300,12 +315,114 @@ class ShapeGrid {
     }
 
     trackMouseMovement = () => {
+        // Desktop mouse tracking
         if (!this.isMobile) {
             document.addEventListener('mousemove', ({ clientX, clientY }) => {
                 this.mouseX = clientX;
                 this.mouseY = clientY;
             });
         }
+        
+        // Add ripple and touch interaction effects
+        this.addRippleEffect();
+    }
+    
+    addRippleEffect = () => {
+        const createRipple = (x, y) => {
+            const maxDistance = Math.max(
+                Math.hypot(x, y),
+                Math.hypot(window.innerWidth - x, y),
+                Math.hypot(x, window.innerHeight - y),
+                Math.hypot(window.innerWidth - x, window.innerHeight - y)
+            );
+
+            const duration = Math.max(1000, Math.max(window.innerWidth, window.innerHeight) * 2.5);
+            const waveThickness = 80;
+
+            const resetShape = (shape) => {
+                if (!this.isMobile) {
+                    // Desktop: reapply cursor effect
+                    shape.applyCursorEffect(this.mouseX, this.mouseY, this.influenceRadius, this.cellSize);
+                } else if (this.touchActive) {
+                    // Mobile with active touch: reapply touch effect
+                    shape.applyCursorEffect(this.touchX, this.touchY, this.influenceRadius, this.cellSize);
+                } else {
+                    // Mobile without active touch: normal scale
+                    shape.element.style.transform = 'scale(1)';
+                    shape.element.style.transition = 'transform 0.3s ease-out';
+                }
+            };
+
+            const animate = (currentTime, startTime = null) => {
+                if (!startTime) startTime = currentTime;
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const currentRippleRadius = maxDistance * easeOut;
+
+                this.shapes.forEach(shape => {
+                    const shapeCenterX = shape.x + this.cellSize / 2;
+                    const shapeCenterY = shape.y + this.cellSize / 2;
+                    const distanceFromRippleCenter = Math.hypot(x - shapeCenterX, y - shapeCenterY);
+
+                    const waveFront = currentRippleRadius;
+                    const waveBack = Math.max(0, currentRippleRadius - waveThickness);
+
+                    if (distanceFromRippleCenter >= waveBack && distanceFromRippleCenter <= waveFront) {
+                        const waveCenter = currentRippleRadius - waveThickness / 2;
+                        const distanceFromWaveCenter = Math.abs(distanceFromRippleCenter - waveCenter);
+                        const intensity = Math.max(0, 1 - (distanceFromWaveCenter / (waveThickness / 2)));
+                        const scale = 1.0 + (intensity * 0.5);
+                        shape.element.style.transform = `scale(${scale})`;
+                        shape.element.style.transition = 'transform 0.1s ease-out';
+                    } else if (distanceFromRippleCenter < waveBack) {
+                        resetShape(shape);
+                    }
+                });
+
+                if (progress < 1) {
+                    requestAnimationFrame((time) => animate(time, startTime));
+                } else {
+                    this.shapes.forEach(resetShape);
+                }
+            };
+
+            requestAnimationFrame(animate);
+        };
+
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.touchActive = true;
+            this.touchX = touch.clientX;
+            this.touchY = touch.clientY;
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (this.touchActive) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                this.touchX = touch.clientX;
+                this.touchY = touch.clientY;
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (this.touchActive) {
+                e.preventDefault();
+                // Trigger ripple at the last touch position
+                createRipple(this.touchX, this.touchY);
+                // Deactivate touch state
+                this.touchActive = false;
+            }
+        }, { passive: false });
+
+        document.addEventListener('click', (e) => {
+            // Only trigger click ripple on non-touch devices
+            if (!this.touchActive) {
+                createRipple(e.clientX, e.clientY);
+            }
+        });
     }
 
     start = () => {
