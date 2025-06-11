@@ -65,6 +65,36 @@
 
     <script>
 "use strict";
+/**
+ * Robust float range generator for forward and backward iteration.
+ * Handles floating-point precision edge cases gracefully.
+ */
+function sanitizeFloat(value) {
+    if (typeof value !== 'number') return value;
+    const epsilon = Number.EPSILON * Math.abs(value) * 10;
+    return Math.abs(value) < epsilon ? 0 : Number(value.toPrecision(12));
+}
+function* floatRange(start, end, step) {
+    if (step === 0) throw new Error("Step must be non-zero.");
+
+    const increasing = step > 0;
+    const totalRange = end - start;
+    const maxSteps = Math.floor(totalRange / step);
+    const epsilon = Number.EPSILON * Math.abs(start + end + step) * 10;
+
+    for (let i = 0; i <= maxSteps + 1; i++) { // +1 to catch edge cases
+        const value = start + i * step;
+
+        // Break if we're beyond bounds, within a small tolerance
+        if (
+            (increasing && value > end + epsilon) ||
+            (!increasing && value < end - epsilon)
+        ) break;
+
+        yield sanitizeFloat(value); // Limit precision drift
+    }
+}
+
 class Shape {
     constructor(x, y, id, shapePaths, cellSize) {
         this.x = x;
@@ -90,8 +120,6 @@ class Shape {
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', this.getRandomShape());
-        path.setAttribute('fill', '#2a2a2a');
-        path.setAttribute('opacity', '0.3');
 
         svg.appendChild(path);
         cell.appendChild(svg);
@@ -163,8 +191,8 @@ class ShapeGrid {
     }
 
     initializeGrid = () => {
-        this.screenWidth = window.innerWidth;
-        this.screenHeight = window.innerHeight;
+        this.screenWidth = sanitizeFloat(window.innerWidth);
+        this.screenHeight = sanitizeFloat(window.innerHeight);
 
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || this.screenWidth <= 768 || ('ontouchstart' in window);
         if(this.isMobile) {
@@ -173,13 +201,17 @@ class ShapeGrid {
 
         this.allowedMinX = -this.gridSpacing;
         this.allowedMinY = -this.gridSpacing;
-        this.allowedMaxX = this.screenWidth + this.gridSpacing;
-        this.allowedMaxY = this.screenHeight + this.gridSpacing;
+        this.allowedMaxX = sanitizeFloat(this.screenWidth + this.gridSpacing);
+        this.allowedMaxY = sanitizeFloat(this.screenHeight + this.gridSpacing);
         
         const fragment = document.createDocumentFragment();
-        let x, y;
-        for (x=this.allowedMinX; x<this.allowedMaxX; x+=this.gridSpacing) {
-            for (y=this.allowedMaxY; y>this.allowedMinY; y-=this.gridSpacing) {
+        let lastX = this.allowedMinX;
+        let lastY = this.allowedMaxY;
+
+        for (const x of floatRange(this.allowedMinX, this.allowedMaxX, this.gridSpacing)) {
+            lastX = x;
+            for (const y of floatRange(this.allowedMaxY, this.allowedMinY, -this.gridSpacing)) {
+                lastY = y;
                 const shape = new Shape(x, y, this.shapeIdCounter++, this.shapePaths, this.cellSize);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
@@ -187,18 +219,20 @@ class ShapeGrid {
         }
         this.gridContainer.appendChild(fragment);
 
+        // Record actual traversed bounds
         this.minX = this.allowedMinX;
-        this.maxX = x-this.gridSpacing;
-        this.minY = y+this.gridSpacing;
+        this.maxX = lastX;
+        this.minY = lastY;
         this.maxY = this.allowedMaxY;
     }
 
     addNewShapesAtEdges = () => {
         // Add new column on the right if needed
         if (this.maxX < this.allowedMaxX) {
-            this.maxX += this.gridSpacing;
+            this.maxX = sanitizeFloat(this.maxX + this.gridSpacing);
             const fragment = document.createDocumentFragment();
-            for (let y=this.maxY; y>=this.minY; y-=this.gridSpacing) {
+            for (const y of floatRange (this.maxY, this.minY, -this.gridSpacing)) {
+                // Use a distinct color for column shapes
                 const shape = new Shape(this.maxX, y, this.shapeIdCounter++, this.shapePaths, this.cellSize);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
@@ -207,9 +241,10 @@ class ShapeGrid {
         }
         // Add new row at the top if needed
         if (this.minY > this.allowedMinY) {
-            this.minY -= this.gridSpacing;
+            this.minY = sanitizeFloat(this.minY - this.gridSpacing);
             const fragment = document.createDocumentFragment();
-            for (let x=this.minX; x<=this.maxX; x+=this.gridSpacing) {
+            for (const x of floatRange (this.minX, this.maxX, this.gridSpacing)) {
+                // Use a distinct color for row shapes
                 const shape = new Shape(x, this.minY, this.shapeIdCounter++, this.shapePaths, this.cellSize);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
@@ -219,12 +254,13 @@ class ShapeGrid {
     }
 
     updateShapePositions = () => {
-        this.minX -= this.moveSpeed;
-        this.maxX -= this.moveSpeed;
-        this.minY += this.moveSpeed;
-        this.maxY += this.moveSpeed;
-        if (this.minX<this.allowedMinX) this.minX += this.gridSpacing;
-        if (this.maxY>this.allowedMaxY) this.maxY -= this.gridSpacing;
+        this.minX = sanitizeFloat(this.minX - this.moveSpeed);
+        this.maxX = sanitizeFloat(this.maxX - this.moveSpeed);
+        this.minY = sanitizeFloat(this.minY + this.moveSpeed);
+        this.maxY = sanitizeFloat(this.maxY + this.moveSpeed);
+
+        if (this.minX<this.allowedMinX) this.minX = sanitizeFloat(this.minX + this.gridSpacing);
+        if (this.maxY>this.allowedMaxY) this.maxY = sanitizeFloat(this.maxY - this.gridSpacing);
 
         this.shapes = this.shapes.filter(shape => {
             shape.updatePosition(this.moveSpeed);
@@ -302,7 +338,7 @@ const grid = new ShapeGrid({
     ],
     gridSpacing: 54,
     cellSize: 36,
-    moveSpeed: 0.2,
+    moveSpeed: 0.4,
     influenceRadius: 150,
     gridContainerId: 'grid'
 });
