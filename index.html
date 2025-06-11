@@ -45,16 +45,9 @@
         
         .shape-cell {
             position: absolute;
-            width: 40px;
-            height: 40px;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-        
-        .shape {
-            width: 32px;
-            height: 32px;
         }
         
         .shape path {
@@ -73,11 +66,12 @@
     <script>
 "use strict";
 class Shape {
-    constructor(x, y, id, shapePaths) {
+    constructor(x, y, id, shapePaths, cellSize) {
         this.x = x;
         this.y = y;
         this.id = id;
         this.shapePaths = shapePaths;
+        this.cellSize = cellSize; // Store cellSize
         this.element = this.createElement();
     }
 
@@ -91,8 +85,8 @@ class Shape {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('class', 'shape');
         svg.setAttribute('viewBox', '0 0 7 7');
-        svg.setAttribute('width', '24');
-        svg.setAttribute('height', '24');
+        svg.setAttribute('width', `${this.cellSize}px`); // Use cellSize for width
+        svg.setAttribute('height', `${this.cellSize}px`); // Use cellSize for height
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', this.getRandomShape());
@@ -186,7 +180,7 @@ class ShapeGrid {
         let x, y;
         for (x=this.allowedMinX; x<this.allowedMaxX; x+=this.gridSpacing) {
             for (y=this.allowedMaxY; y>this.allowedMinY; y-=this.gridSpacing) {
-                const shape = new Shape(x, y, this.shapeIdCounter++, this.shapePaths);
+                const shape = new Shape(x, y, this.shapeIdCounter++, this.shapePaths, this.cellSize);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
             }
@@ -205,7 +199,7 @@ class ShapeGrid {
             this.maxX += this.gridSpacing;
             const fragment = document.createDocumentFragment();
             for (let y=this.maxY; y>=this.minY; y-=this.gridSpacing) {
-                const shape = new Shape(this.maxX, y, this.shapeIdCounter++, this.shapePaths);
+                const shape = new Shape(this.maxX, y, this.shapeIdCounter++, this.shapePaths, this.cellSize);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
             }
@@ -216,7 +210,7 @@ class ShapeGrid {
             this.minY -= this.gridSpacing;
             const fragment = document.createDocumentFragment();
             for (let x=this.minX; x<=this.maxX; x+=this.gridSpacing) {
-                const shape = new Shape(x, this.minY, this.shapeIdCounter++, this.shapePaths);
+                const shape = new Shape(x, this.minY, this.shapeIdCounter++, this.shapePaths, this.cellSize);
                 this.shapes.push(shape);
                 fragment.appendChild(shape.element);
             }
@@ -306,9 +300,9 @@ const grid = new ShapeGrid({
         'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 6.5 A0.5 0.5 0 0 0 0.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L3.5 0 z',
         'M3.5 0 A3.5 3.5 0 0 0 0 3.5 L0 3.5 A3.5 3.5 0 0 0 3.5 7 L3.5 7 A3.5 3.5 0 0 0 7 3.5 L7 3.5 A3.5 3.5 0 0 0 3.5 0 L3.5 0 z'
     ],
-    gridSpacing: 65,
-    cellSize: 50,
-    moveSpeed: 0.4,
+    gridSpacing: 54,
+    cellSize: 36,
+    moveSpeed: 0.2,
     influenceRadius: 150,
     gridContainerId: 'grid'
 });
