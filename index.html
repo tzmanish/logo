@@ -65,15 +65,15 @@
 
     <script>
 "use strict";
-/**
- * Robust float range generator for forward and backward iteration.
- * Handles floating-point precision edge cases gracefully.
- */
 function sanitizeFloat(value) {
     if (typeof value !== 'number') return value;
     const epsilon = Number.EPSILON * Math.abs(value) * 10;
     return Math.abs(value) < epsilon ? 0 : Number(value.toPrecision(12));
 }
+/**
+ * Robust float range generator for forward and backward iteration.
+ * Handles floating-point precision edge cases gracefully.
+ */
 function* floatRange(start, end, step) {
     if (step === 0) throw new Error("Step must be non-zero.");
 
@@ -338,7 +338,7 @@ const grid = new ShapeGrid({
     ],
     gridSpacing: 54,
     cellSize: 36,
-    moveSpeed: 0.4,
+    moveSpeed: 0.2,
     influenceRadius: 150,
     gridContainerId: 'grid'
 });
